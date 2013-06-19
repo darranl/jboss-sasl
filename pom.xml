@@ -122,6 +122,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.jboss.idm</groupId>
+            <artifactId>jboss-idm</artifactId>
+            <version>1.0.0.Alpha1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>org.jboss.logging</groupId>
             <artifactId>jboss-logging</artifactId>
             <version>3.1.1.GA</version>

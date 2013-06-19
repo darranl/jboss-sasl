@@ -28,14 +28,17 @@ import javax.security.sasl.SaslServer;
 import javax.security.sasl.SaslServerFactory;
 import java.util.Map;
 
+import org.jboss.idm.IdentityManager;
+import org.jboss.sasl.JBossSaslServerFactory;
 import org.jboss.sasl.util.AbstractSaslFactory;
+import org.jboss.sasl.util.IdentityManagerCallbackHandler;
 
 /**
  * The server factory for the plain SASL mechanism.
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
-public class PlainServerFactory extends AbstractSaslFactory implements SaslServerFactory {
+public class PlainServerFactory extends AbstractSaslFactory implements JBossSaslServerFactory {
 
     /**
      * The PLAIN mechanism name
@@ -65,6 +68,11 @@ public class PlainServerFactory extends AbstractSaslFactory implements SaslServe
         }
 
         return new PlainSaslServer(protocol, serverName, cbh);
+    }
+
+    public SaslServer createSaslServer(String mechanism, String protocol, String serverName, Map<String, ?> props,
+            IdentityManager idm) throws SaslException {
+        return createSaslServer(mechanism, protocol, serverName, props, new IdentityManagerCallbackHandler(idm));
     }
 
     @Override

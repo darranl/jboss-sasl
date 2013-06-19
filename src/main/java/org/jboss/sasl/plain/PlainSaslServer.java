@@ -73,7 +73,7 @@ public final class PlainSaslServer extends AbstractSaslServer {
                 } else {
                     throw new SaslException("Invalid number of message parts (" + parts.length + ")");
                 }
-                
+
                 // By this point we have already created the Strings no point checking the length as the
                 // memory is already allocated.
 

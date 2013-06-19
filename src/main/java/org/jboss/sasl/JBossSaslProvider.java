@@ -55,6 +55,8 @@ public final class JBossSaslProvider extends Provider {
 
     private static final String SASL_SERVER_FACTORY = SaslServerFactory.class.getSimpleName();
 
+    private static final String JBOSS_SASL_SERVER_FACTORY = JBossSaslServerFactory.class.getSimpleName();
+
     private static final String DOT = ".";
 
     /**
@@ -66,9 +68,9 @@ public final class JBossSaslProvider extends Provider {
         put(SASL_CLIENT_FACTORY + DOT + ANONYMOUS, AnonymousClientFactory.class.getName());
         put(SASL_SERVER_FACTORY + DOT + ANONYMOUS, AnonymousServerFactory.class.getName());
         put(SASL_SERVER_FACTORY + DOT + PLAIN, PlainServerFactory.class.getName());
+        put(JBOSS_SASL_SERVER_FACTORY + DOT + PLAIN, PlainServerFactory.class.getName());
         put(SASL_CLIENT_FACTORY + DOT + DIGEST_MD5, DigestMD5ClientFactory.class.getName());
         put(SASL_SERVER_FACTORY + DOT + DIGEST_MD5, DigestMD5ServerFactory.class.getName());
-        if (false) put(SASL_CLIENT_FACTORY + "." + JBOSS_CLIENTTOKEN, ClientTokenClientFactory.class.getName());
         put(SASL_SERVER_FACTORY + DOT + JBOSS_LOCAL_USER, LocalUserServerFactory.class.getName());
         put(SASL_CLIENT_FACTORY + DOT + JBOSS_LOCAL_USER, LocalUserClientFactory.class.getName());
     }
