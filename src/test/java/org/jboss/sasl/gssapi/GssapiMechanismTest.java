@@ -22,6 +22,13 @@
 
 package org.jboss.sasl.gssapi;
 
+import static org.junit.Assert.assertNotNull;
+import static org.jboss.sasl.gssapi.JAASUtil.login;
+
+import javax.security.auth.Subject;
+
+import org.jboss.logging.Logger;
+import org.jboss.logmanager.log4j.BridgeRepositorySelector;
 import org.jboss.sasl.test.BaseTestCase;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -34,10 +41,16 @@ import org.junit.Test;
  */
 public class GssapiMechanismTest extends BaseTestCase {
 
+    private static Logger log = Logger.getLogger(GssapiMechanismTest.class);
+
     private static TestKDC testKdc;
 
     @BeforeClass
     public static void startServers() {
+        log.debug("Start");
+        new BridgeRepositorySelector().start();
+        //new org.jboss.logmanager.log4j.BridgeRepositorySelector().start();
+
         TestKDC testKdc = new TestKDC();
         testKdc.startDirectoryService();
         testKdc.startKDC();
@@ -53,8 +66,17 @@ public class GssapiMechanismTest extends BaseTestCase {
     }
 
     @Test
-    public void helloWorld() {
-        System.out.println("Hello World!!");
+    public void authenticateServer() throws Exception {
+        Subject subject = login("sasl/test_server", "servicepwd".toCharArray(), true);
+        assertNotNull(subject);
+    }
+
+    @Test
+    public void authenticateClient() throws Exception {
+        log.debug("authenticateClient - Start");
+        Subject subject = login("jduke", "theduke".toCharArray(), false);
+        assertNotNull(subject);
+        log.debug("authenticateClient - End");
     }
 
 }

@@ -38,6 +38,7 @@ import org.apache.directory.server.core.api.partition.Partition;
 import org.apache.directory.server.core.factory.DefaultDirectoryServiceFactory;
 import org.apache.directory.server.core.factory.DirectoryServiceFactory;
 import org.apache.directory.server.core.factory.PartitionFactory;
+import org.apache.directory.server.core.kerberos.KeyDerivationInterceptor;
 import org.apache.directory.server.kerberos.KerberosConfig;
 import org.apache.directory.server.kerberos.kdc.KdcServer;
 import org.apache.directory.server.protocol.shared.transport.UdpTransport;
@@ -67,6 +68,8 @@ class TestKDC {
             dsf.init("Test Service");
 
             ds.getChangeLog().setEnabled(false);
+
+            ds.addLast(new KeyDerivationInterceptor());
 
             SchemaManager schemaManager = ds.getSchemaManager();
             createPartition(dsf, schemaManager, "jboss", "dc=jboss,dc=org", ds, workingDir, "uid", "krb5PrincipalName");
@@ -198,7 +201,7 @@ class TestKDC {
     public void stopAll() {
         stopKDC();
         stopDirectoryService();
-        cleanWorkingDir();
+        //cleanWorkingDir();
     }
 
 }
