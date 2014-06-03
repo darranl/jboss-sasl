@@ -38,6 +38,8 @@ import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
+import org.jboss.logging.Logger;
+
 /**
  * Utility class for the JAAS based logins.
  *
@@ -45,7 +47,19 @@ import javax.security.auth.login.LoginException;
  */
 class JAASUtil {
 
+    private static Logger log = Logger.getLogger(JAASUtil.class);
+
     private static final boolean IS_IBM = System.getProperty("java.vendor").contains("IBM");
+
+    static Subject loginClient() throws LoginException {
+        log.debug("loginClient");
+        return login("jduke", "theduke".toCharArray(), false);
+    }
+
+    static Subject loginServer(final String serverName) throws LoginException {
+        log.debug("loginServer");
+        return login("sasl/" + serverName, "servicepwd".toCharArray(), true);
+    }
 
     static Subject login(final String userName, final char[] password, final boolean server) throws LoginException {
         Subject theSubject = new Subject();
@@ -62,7 +76,7 @@ class JAASUtil {
             @Override
             public AppConfigurationEntry[] getAppConfigurationEntry(String name) {
                 if ("KDC".equals(name) == false) {
-                    throw new IllegalArgumentException("Unexpected name '" + name + "'");
+                    throw new IllegalArgumentException(String.format("Unexpected name '%s'", name));
                 }
 
                 AppConfigurationEntry[] entries = new AppConfigurationEntry[1];
