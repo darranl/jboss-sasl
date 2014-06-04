@@ -174,8 +174,9 @@ public class GssapiMechanismTest extends BaseTestCase {
              */
 
             if (mode != VerificationMode.NONE) {
-                testDataExchange(client, server, mode == VerificationMode.CONFIDENTIALITY);
+                testDataExchange(client, server);
             }
+
 
         } finally {
             try {
@@ -188,7 +189,7 @@ public class GssapiMechanismTest extends BaseTestCase {
         }
     }
 
-    private void testDataExchange(final SaslClient client, final SaslServer server, final boolean confidential) throws SaslException {
+    private void testDataExchange(final SaslClient client, final SaslServer server) throws SaslException {
         byte[] original = "Some Test Data".getBytes(Charsets.UTF_8);
         byte[] backup = "Some Test Data".getBytes(Charsets.UTF_8);
         byte[] fromClient = client.wrap(original, 0, original.length);
