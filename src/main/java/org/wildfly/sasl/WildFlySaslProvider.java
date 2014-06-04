@@ -18,6 +18,7 @@
 
 package org.wildfly.sasl;
 
+import static org.jboss.sasl.gssapi.AbstractGssapiFactory.GSSAPI;
 import static org.wildfly.sasl.anonymous.AbstractAnonymousFactory.ANONYMOUS;
 import static org.wildfly.sasl.localuser.LocalUserSaslFactory.JBOSS_LOCAL_USER;
 import static org.wildfly.sasl.plain.PlainServerFactory.PLAIN;
@@ -27,6 +28,7 @@ import java.security.Provider;
 import javax.security.sasl.SaslClientFactory;
 import javax.security.sasl.SaslServerFactory;
 
+import org.jboss.sasl.gssapi.GssapiClientFactory;
 import org.wildfly.sasl.anonymous.AnonymousClientFactory;
 import org.wildfly.sasl.anonymous.AnonymousServerFactory;
 import org.wildfly.sasl.localuser.LocalUserClientFactory;
@@ -59,6 +61,7 @@ public class WildFlySaslProvider extends Provider {
         put(SASL_SERVER_FACTORY + DOT + PLAIN, PlainServerFactory.class.getName());
         put(SASL_SERVER_FACTORY + DOT + JBOSS_LOCAL_USER, LocalUserServerFactory.class.getName());
         put(SASL_CLIENT_FACTORY + DOT + JBOSS_LOCAL_USER, LocalUserClientFactory.class.getName());
+        put(SASL_CLIENT_FACTORY + DOT + GSSAPI, GssapiClientFactory.class.getName());
     }
 
     /**
