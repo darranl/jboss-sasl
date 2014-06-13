@@ -15,28 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.wildfly.sasl.gssapi;
 
 import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
-
-import org.wildfly.sasl.util.AbstractSaslClient;
+import javax.security.sasl.SaslException;
+import javax.security.sasl.SaslServer;
+import javax.security.sasl.SaslServerFactory;
 
 /**
- * SaslClient for the GSSAPI mechanism as defined by RFC 4752
+ * SaslServerFactory for the GSSAPI mechanism as defined by RFC 4752
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
-public class GssapiClient extends AbstractSaslClient {
+public class GssapiServerFactory extends AbstractGssapiFactory implements SaslServerFactory {
 
-    GssapiClient(final String protocol, final String serverName, final Map<String, ?> props, final CallbackHandler callbackHandler, final String authorizationId) {
-        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, callbackHandler, authorizationId, true);
-
-
-
+    @Override
+    public SaslServer createSaslServer(String mechanism, String protocol, String serverName, Map<String, ?> props,
+            CallbackHandler cbh) throws SaslException {
+        return GSSAPI.equals(mechanism) && matches(props) ? new GssapiServer(protocol, serverName, props, cbh) : null;
     }
-
 
 }

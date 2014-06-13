@@ -264,7 +264,7 @@ public abstract class BaseGssapiTests extends BaseTestCase {
     private SaslServerFactory findSaslServerFactory(final boolean wildFlyProvider) {
         Provider p = findProvider(SASL_SERVER_FACTORY_GSSAPI, wildFlyProvider);
 
-        String factoryName = (String) p.get(SASL_CLIENT_FACTORY_GSSAPI);
+        String factoryName = (String) p.get(SASL_SERVER_FACTORY_GSSAPI);
 
         try {
             return (SaslServerFactory) BaseGssapiTests.class.getClassLoader().loadClass(factoryName).newInstance();

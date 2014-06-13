@@ -22,21 +22,22 @@ import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
 
-import org.wildfly.sasl.util.AbstractSaslClient;
+import org.wildfly.sasl.util.AbstractSaslServer;
 
 /**
- * SaslClient for the GSSAPI mechanism as defined by RFC 4752
+ * SaslServer for the GSSAPI mechanism as defined by RFC 4752
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
-public class GssapiClient extends AbstractSaslClient {
+public class GssapiServer extends AbstractSaslServer {
 
-    GssapiClient(final String protocol, final String serverName, final Map<String, ?> props, final CallbackHandler callbackHandler, final String authorizationId) {
-        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, callbackHandler, authorizationId, true);
-
-
-
+    GssapiServer(final String protocol, final String serverName, final Map<String, ?> props, final CallbackHandler callbackHandler) {
+        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, callbackHandler);
     }
 
+    @Override
+    public String getAuthorizationID() {
+        return null;
+    }
 
 }

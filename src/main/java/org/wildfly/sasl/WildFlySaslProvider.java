@@ -43,6 +43,8 @@ import org.wildfly.sasl.plain.PlainServerFactory;
  */
 public class WildFlySaslProvider extends Provider {
 
+    private static final long serialVersionUID = 2819852358608732038L;
+
     private static final String INFO = "JBoss SASL Provider " + getVersionString();
 
     private static final String SASL_CLIENT_FACTORY = SaslClientFactory.class.getSimpleName();
