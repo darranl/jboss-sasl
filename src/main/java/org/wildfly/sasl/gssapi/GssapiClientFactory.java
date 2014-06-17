@@ -35,8 +35,14 @@ public class GssapiClientFactory extends AbstractGssapiFactory implements SaslCl
     @Override
     public SaslClient createSaslClient(String[] mechanisms, String authorizationId, String protocol, String serverName,
             Map<String, ?> props, CallbackHandler cbh) throws SaslException {
-        return isIncluded(mechanisms) && matches(props) ? new GssapiClient(protocol, serverName, props, cbh, authorizationId)
-        : null;
+        if (isIncluded(mechanisms) && matches(props)) {
+            GssapiClient client = new GssapiClient(protocol, serverName, props, cbh, authorizationId);
+            client.init();
+
+            return client;
+        }
+
+        return null;
     }
 
 }

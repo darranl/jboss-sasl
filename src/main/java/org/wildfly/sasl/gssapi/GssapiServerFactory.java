@@ -34,6 +34,9 @@ public class GssapiServerFactory extends AbstractGssapiFactory implements SaslSe
     @Override
     public SaslServer createSaslServer(String mechanism, String protocol, String serverName, Map<String, ?> props,
             CallbackHandler cbh) throws SaslException {
+        // TODO - We are actually required by RFC4752 to ensure we have the acceptor credential BEFORE advertising the
+        // mechanism is available.
+
         return GSSAPI.equals(mechanism) && matches(props) ? new GssapiServer(protocol, serverName, props, cbh) : null;
     }
 
