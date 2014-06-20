@@ -157,7 +157,7 @@ public abstract class AbstractSaslParticipant {
         return context;
     }
 
-    byte[] evaluateMessage(final byte[] message) throws SaslException {
+    protected byte[] evaluateMessage(final byte[] message) throws SaslException {
         boolean ok = true;
         try {
             byte[] result = state.evaluateMessage(context, message);

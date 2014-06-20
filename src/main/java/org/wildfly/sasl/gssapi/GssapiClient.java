@@ -24,6 +24,7 @@ import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.sasl.Sasl;
+import javax.security.sasl.SaslClient;
 import javax.security.sasl.SaslException;
 
 import org.ietf.jgss.GSSContext;
@@ -34,7 +35,6 @@ import org.ietf.jgss.GSSName;
 import org.ietf.jgss.MessageProp;
 import org.ietf.jgss.Oid;
 import org.wildfly.sasl.WildFlySasl;
-import org.wildfly.sasl.util.AbstractSaslClient;
 import org.wildfly.sasl.util.Charsets;
 import org.wildfly.sasl.util.SaslState;
 import org.wildfly.sasl.util.SaslStateContext;
@@ -45,62 +45,18 @@ import org.wildfly.sasl.util.SaslWrapper;
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
-public class GssapiClient extends AbstractSaslClient {
-
-    // QOP
-    private static final String AUTH = "auth";
-    private static final String AUTH_INT = "auth-int";
-    private static final String AUTH_CONF = "auth-conf";
-
-    // Security Layer
-    private static final byte NO_SECURITY_LAYER = (byte) 0x01;
-    private static final byte INTEGRITY_PROTECTION = (byte) 0x02;
-    private static final byte CONFIDENTIALITY_PROTECTION = (byte) 0x04;
-
-    private static final int DEFAULT_MAX_BUFFER_SIZE = (int) 0xFFF; // We need to be able to specify this in three bytes.
-
-    // Kerberos V5 OID
-
-    public static final Oid KERBEROS_V5;
-
-    static {
-        try {
-            KERBEROS_V5 = new Oid("1.2.840.113554.1.2.2");
-        } catch (GSSException e) {
-            throw new RuntimeException("Unable to initialise Oid", e);
-        }
-    }
+public class GssapiClient extends AbstractGssapiMechanism implements SaslClient {
 
     // Configured Values
     private final String authorizationId;
     private final QOP[] preferredQop;
-    private final int configuredMaxReceiveBuffer;
-    private final boolean relaxComplianceChecks;
     // Negotiated Values
     private QOP selectedQop;
-    // Other Internal State
-    private final GSSContext gssContext;
-
     GssapiClient(final String protocol, final String serverName, final Map<String, ?> props,
             final CallbackHandler callbackHandler, final String authorizationId) throws SaslException {
-        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, callbackHandler, authorizationId, true);
+        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, props, callbackHandler);
 
         this.authorizationId = authorizationId;
-        if (props.containsKey(Sasl.MAX_BUFFER)) {
-            configuredMaxReceiveBuffer = Integer.parseInt((String) props.get(Sasl.MAX_BUFFER));
-            if (configuredMaxReceiveBuffer > DEFAULT_MAX_BUFFER_SIZE) {
-                // TODO - We could choose to just use the minimum value of the two.
-                throw new SaslException(String.format("Receive buffer requested '%d' is greater than supported maximum '%d'.",
-                        configuredMaxReceiveBuffer, DEFAULT_MAX_BUFFER_SIZE));
-            }
-        } else {
-            configuredMaxReceiveBuffer = DEFAULT_MAX_BUFFER_SIZE;
-        }
-        if (props.containsKey(WildFlySasl.RELAX_COMPLIANCE)) {
-            relaxComplianceChecks = Boolean.parseBoolean((String) props.get(WildFlySasl.RELAX_COMPLIANCE));
-        } else {
-            relaxComplianceChecks = false;
-        }
 
         // Initialise our GSSContext
         GSSManager manager = GSSManager.getInstance();
@@ -207,38 +163,6 @@ public class GssapiClient extends AbstractSaslClient {
         return new QOP[] { QOP.AUTH };
     }
 
-    /**
-     * Converts bytes in network byte order to an integer starting from the specified offset.
-     *
-     * This method is implemented in the context of the GSSAPI mechanism, it is assumed that the size of the byte array is
-     * appropriate.
-     */
-    private int networkOrderBytesToInt(final byte[] bytes, final int start) {
-        int result = 0;
-
-        for (int i = start; i < bytes.length; i++) {
-            result <<= 8;
-            result |= bytes[i]; // TODO - Do we need an int conversion.
-        }
-
-        return result;
-    }
-
-    /**
-     * Obtain a 3 byte representation of an int, as an internal method it is assumed the maximum value of the int has already
-     * takine into account that it needs to fit into tree bytes,
-     */
-    private byte[] intToNetworkOrderBytes(final int value) {
-        byte[] response = new byte[3];
-        int workingValue = value;
-        for (int i = response.length - 1; i < 0; i--) {
-            response[i] = (byte) (workingValue & 0xFF);
-            workingValue >>>= 8;
-        }
-
-        return response;
-    }
-
     private boolean mayRequireSecurityLater(final QOP[] preferredQop) {
         for (QOP current : preferredQop) {
             if (current == QOP.AUTH_INT || current == QOP.AUTH_CONF) {
@@ -261,6 +185,16 @@ public class GssapiClient extends AbstractSaslClient {
     @Override
     public void init() {
         getContext().setNegotiationState(new InitialChallengeState());
+    }
+
+    @Override
+    public boolean hasInitialResponse() {
+        return true;
+    }
+
+    @Override
+    public byte[] evaluateChallenge(byte[] challenge) throws SaslException {
+        return evaluateMessage(challenge);
     }
 
     @Override
@@ -411,47 +345,6 @@ public class GssapiClient extends AbstractSaslClient {
             } catch (GSSException e) {
                 throw new SaslException("Unable to wrap message.", e);
             }
-        }
-
-    }
-
-    private enum QOP {
-
-        AUTH(GssapiClient.AUTH, NO_SECURITY_LAYER), AUTH_INT(GssapiClient.AUTH_INT, INTEGRITY_PROTECTION), AUTH_CONF(
-                GssapiClient.AUTH_CONF, CONFIDENTIALITY_PROTECTION);
-
-        private final String name;
-        private final byte value;
-
-        private QOP(final String name, final byte value) {
-            this.name = name;
-            this.value = value;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public byte getValue() {
-            return value;
-        }
-
-        public boolean includedBy(final byte securityLayer) {
-            return (securityLayer & value) == value;
-        }
-
-        public static QOP mapFromName(final String name) {
-            switch (name) {
-                case GssapiClient.AUTH:
-                    return AUTH;
-                case GssapiClient.AUTH_INT:
-                    return AUTH_INT;
-                case GssapiClient.AUTH_CONF:
-                    return AUTH_CONF;
-                default:
-                    return null;
-            }
-
         }
 
     }

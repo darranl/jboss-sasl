@@ -21,18 +21,18 @@ package org.wildfly.sasl.gssapi;
 import java.util.Map;
 
 import javax.security.auth.callback.CallbackHandler;
-
-import org.wildfly.sasl.util.AbstractSaslServer;
+import javax.security.sasl.SaslException;
+import javax.security.sasl.SaslServer;
 
 /**
  * SaslServer for the GSSAPI mechanism as defined by RFC 4752
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
-public class GssapiServer extends AbstractSaslServer {
+public class GssapiServer extends AbstractGssapiMechanism implements SaslServer {
 
-    GssapiServer(final String protocol, final String serverName, final Map<String, ?> props, final CallbackHandler callbackHandler) {
-        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, callbackHandler);
+    GssapiServer(final String protocol, final String serverName, final Map<String, ?> props, final CallbackHandler callbackHandler) throws SaslException {
+        super(AbstractGssapiFactory.GSSAPI, protocol, serverName, props, callbackHandler);
     }
 
     @Override
@@ -40,4 +40,17 @@ public class GssapiServer extends AbstractSaslServer {
         return null;
     }
 
+    @Override
+    public byte[] evaluateResponse(byte[] response) throws SaslException {
+        return evaluateMessage(response);
+    }
+
+
+    // States
+
+    // 1 - Acceptor State
+
+    // 2 - Security Layer Advertiser
+
+    // 3 - Security Layer Receiver
 }
