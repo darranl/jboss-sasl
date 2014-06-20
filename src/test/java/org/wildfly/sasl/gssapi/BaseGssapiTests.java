@@ -21,7 +21,6 @@ package org.wildfly.sasl.gssapi;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginClient;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginServer;
 
@@ -181,13 +180,13 @@ public abstract class BaseGssapiTests extends BaseTestCase {
      */
 
     protected SaslClient createClient(final Subject subject, final boolean wildFlyProvider, final boolean authServer,
-            final VerificationMode mode) throws SaslException {
+            final VerificationMode mode, final Map<String, String> baseProps) throws SaslException {
         try {
             return Subject.doAs(subject, new PrivilegedExceptionAction<SaslClient>() {
 
                 @Override
                 public SaslClient run() throws SaslException {
-                    return createClient(wildFlyProvider, authServer, mode);
+                    return createClient(wildFlyProvider, authServer, mode, baseProps);
                 }
             });
         } catch (PrivilegedActionException e) {
@@ -199,11 +198,11 @@ public abstract class BaseGssapiTests extends BaseTestCase {
         }
     }
 
-    private SaslClient createClient(final boolean wildFlyProvider, final boolean authServer, final VerificationMode mode)
+    private SaslClient createClient(final boolean wildFlyProvider,  final boolean authServer, final VerificationMode mode, final Map<String, String> baseProps)
             throws SaslException {
         SaslClientFactory factory = findSaslClientFactory(wildFlyProvider);
 
-        Map<String, String> props = new HashMap<String, String>();
+        Map<String, String> props = new HashMap<String, String>(baseProps);
         props.put(Sasl.SERVER_AUTH, Boolean.toString(authServer));
         props.put(Sasl.QOP, mode.getQop());
 

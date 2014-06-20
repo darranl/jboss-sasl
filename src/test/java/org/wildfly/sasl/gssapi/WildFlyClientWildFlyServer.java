@@ -21,6 +21,9 @@ package org.wildfly.sasl.gssapi;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginClient;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginServer;
 
+import java.util.Collections;
+import java.util.Map;
+
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
 import javax.security.sasl.SaslClient;
@@ -52,7 +55,8 @@ public class WildFlyClientWildFlyServer extends BaseGssapiTests {
 
     @Override
     protected SaslClient getSaslClient(final boolean authServer, final VerificationMode mode) throws Exception {
-        SaslClient baseClient = createClient(clientSubject, true, authServer, mode);
+        Map<String, String> props = Collections.emptyMap();
+        SaslClient baseClient = createClient(clientSubject, true, authServer, mode, props);
 
         return new SubjectWrappingSaslClient(baseClient, clientSubject);
     }
