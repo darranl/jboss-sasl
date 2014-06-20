@@ -38,6 +38,7 @@ import org.wildfly.sasl.util.AbstractSaslClient;
 import org.wildfly.sasl.util.Charsets;
 import org.wildfly.sasl.util.SaslState;
 import org.wildfly.sasl.util.SaslStateContext;
+import org.wildfly.sasl.util.SaslWrapper;
 
 /**
  * SaslClient for the GSSAPI mechanism as defined by RFC 4752
@@ -376,6 +377,10 @@ public class GssapiClient extends AbstractSaslClient {
                 msgProp = new MessageProp(0, false);
                 response = gssContext.wrap(response, 0, response.length, msgProp);
 
+                if (selectedQop != QOP.AUTH) {
+                    setWrapper(new GssapiWrapper());
+                }
+
                 context.negotiationComplete();
                 return response;
             } catch (IOException e) {
@@ -384,6 +389,30 @@ public class GssapiClient extends AbstractSaslClient {
                 throw new SaslException("Unable to unwrap security layer negotiation message.", e);
             }
         }
+    }
+
+    private class GssapiWrapper implements SaslWrapper {
+
+        @Override
+        public byte[] wrap(byte[] outgoing, int offset, int len) throws SaslException {
+            MessageProp prop = new MessageProp(0, selectedQop == QOP.AUTH_CONF);
+            try {
+                return gssContext.wrap(outgoing, offset, len, prop);
+            } catch (GSSException e) {
+                throw new SaslException("Unable to wrap message.", e);
+            }
+        }
+
+        @Override
+        public byte[] unwrap(byte[] incoming, int offset, int len) throws SaslException {
+            MessageProp prop = new MessageProp(0, selectedQop == QOP.AUTH_CONF);
+            try {
+                return gssContext.unwrap(incoming, offset, len, prop);
+            } catch (GSSException e) {
+                throw new SaslException("Unable to wrap message.", e);
+            }
+        }
+
     }
 
     private enum QOP {
