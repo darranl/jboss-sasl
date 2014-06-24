@@ -213,7 +213,7 @@ public abstract class BaseGssapiTests extends BaseTestCase {
      * Server Creation Methods
      */
 
-    SaslServer createServer(final Subject subject, final boolean wildFlyProvider, final VerificationMode mode)
+    SaslServer createServer(final Subject subject, final boolean wildFlyProvider, final VerificationMode mode, final Map<String, String> baseProps)
             throws SaslException {
 
         try {
@@ -221,7 +221,7 @@ public abstract class BaseGssapiTests extends BaseTestCase {
 
                 @Override
                 public SaslServer run() throws Exception {
-                    return createServer(wildFlyProvider, mode);
+                    return createServer(wildFlyProvider, mode, baseProps);
                 }
 
             });
@@ -235,10 +235,10 @@ public abstract class BaseGssapiTests extends BaseTestCase {
 
     }
 
-    private SaslServer createServer(final boolean wildFlyProvider, final VerificationMode mode) throws SaslException {
+    private SaslServer createServer(final boolean wildFlyProvider, final VerificationMode mode, final Map<String, String> baseProps) throws SaslException {
         SaslServerFactory factory = findSaslServerFactory(wildFlyProvider);
 
-        Map<String, String> props = new HashMap<String, String>();
+        Map<String, String> props = new HashMap<String, String>(baseProps);
         props.put(Sasl.QOP, mode.getQop());
 
         return factory.createSaslServer(GSSAPI, "sasl", "test_server", props, new AuthorizeOnlyCallbackHandler());

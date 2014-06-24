@@ -22,6 +22,7 @@ import static org.wildfly.sasl.gssapi.JAASUtil.loginClient;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginServer;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.security.auth.Subject;
@@ -31,6 +32,7 @@ import javax.security.sasl.SaslServer;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.wildfly.sasl.WildFlySasl;
 
 /**
  * Test a JDK supplied client can communicate with a WildFly server.
@@ -57,6 +59,7 @@ public class JdkClientWildFlyServer extends BaseGssapiTests {
     @Override
     protected SaslClient getSaslClient(final boolean authServer, final VerificationMode mode) throws Exception {
         Map<String, String> props = Collections.emptyMap();
+
         SaslClient baseClient = createClient(clientSubject, false, authServer, mode, props);
 
         return new SubjectWrappingSaslClient(baseClient, clientSubject);
@@ -64,7 +67,9 @@ public class JdkClientWildFlyServer extends BaseGssapiTests {
 
     @Override
     protected SaslServer getSaslServer(final VerificationMode mode) throws Exception {
-        SaslServer baseServer = createServer(serverSubject, true, mode);
+        Map<String, String> props = new HashMap<String, String>();
+        props.put(WildFlySasl.RELAX_COMPLIANCE, Boolean.TRUE.toString());
+        SaslServer baseServer = createServer(serverSubject, true, mode, props);
 
         return new SubjectWrappingSaslServer(baseServer, serverSubject);
     }

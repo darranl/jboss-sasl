@@ -47,6 +47,9 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
     private static final byte CONFIDENTIALITY_PROTECTION = (byte) 0x04;
     protected static final int DEFAULT_MAX_BUFFER_SIZE = (int) 0xFFF;
     protected static final Oid KERBEROS_V5;
+
+
+
     private final boolean confSupported;
     private final boolean integSupported;
 
@@ -62,6 +65,8 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
 
     protected GSSContext gssContext;
     protected final int configuredMaxReceiveBuffer;
+    protected int actualMaxReceiveBuffer;
+    protected int maxBuffer;
     protected final boolean relaxComplianceChecks;
     protected final QOP[] orderedQops;
     protected QOP selectedQop;
@@ -161,6 +166,22 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
         }
 
         return new QOP[] { QOP.AUTH };
+    }
+
+    @Override
+    public Object getNegotiatedProperty(String propName) {
+        assertComplete();
+
+        switch (propName) {
+            case Sasl.QOP:
+                return selectedQop.getName();
+            case Sasl.MAX_BUFFER:
+                return actualMaxReceiveBuffer;
+            case Sasl.RAW_SEND_SIZE:
+                return maxBuffer;
+        }
+
+        return null;
     }
 
     protected enum QOP {

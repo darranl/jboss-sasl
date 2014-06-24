@@ -64,7 +64,8 @@ public class JdkClientJdkServer extends BaseGssapiTests {
 
     @Override
     protected SaslServer getSaslServer(final VerificationMode mode) throws Exception {
-        SaslServer baseServer = createServer(serverSubject, false, mode);
+        Map<String, String> props = Collections.emptyMap();
+        SaslServer baseServer = createServer(serverSubject, false, mode, props);
 
         return new SubjectWrappingSaslServer(baseServer, serverSubject);
     }

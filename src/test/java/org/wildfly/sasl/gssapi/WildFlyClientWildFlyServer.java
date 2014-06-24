@@ -63,7 +63,8 @@ public class WildFlyClientWildFlyServer extends BaseGssapiTests {
 
     @Override
     protected SaslServer getSaslServer(final VerificationMode mode) throws Exception {
-        SaslServer baseServer = createServer(serverSubject, true, mode);
+        Map<String, String> props = Collections.emptyMap();
+        SaslServer baseServer = createServer(serverSubject, true, mode, props);
 
         return new SubjectWrappingSaslServer(baseServer, serverSubject);
     }

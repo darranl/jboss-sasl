@@ -170,22 +170,6 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
         return evaluateMessage(challenge);
     }
 
-    @Override
-    public Object getNegotiatedProperty(String propName) {
-        assertComplete();
-
-        switch (propName) {
-            case Sasl.QOP:
-                return selectedQop.getName();
-        }
-
-        // Properties to support: -
-        // Sasl.MAX_BUFFER
-        // Sasl.RAW_SEND_SIZE
-        // MAX_SEND_BUF
-        return null;
-    }
-
     /**
      * GSSAPI is a client first mechanism, this state both verifies that requirement is met and provides the first token from
      * the client.
@@ -253,12 +237,12 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
 
                 byte qopByte = unwrapped[0];
                 selectedQop = findAgreeableQop(qopByte);
-                int serverMaxMessageSize = networkOrderBytesToInt(unwrapped, 1, 3);
-                if (relaxComplianceChecks == false && serverMaxMessageSize > 0 && (qopByte & QOP.AUTH_INT.getValue()) == 0
+                maxBuffer = networkOrderBytesToInt(unwrapped, 1, 3);
+                if (relaxComplianceChecks == false && maxBuffer > 0 && (qopByte & QOP.AUTH_INT.getValue()) == 0
                         && (qopByte & QOP.AUTH_CONF.getValue()) == 0) {
                     throw new SaslException(String.format(
                             "Invalid message size received when no security layer supported by server '%d'",
-                            serverMaxMessageSize));
+                            maxBuffer));
                 }
 
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -267,7 +251,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
                     // No security layer selected to must set response to 000.
                     baos.write(new byte[] { 0x00, 0x00, 0x00 });
                 } else {
-                    int actualMaxReceiveBuffer = gssContext.getWrapSizeLimit(0, selectedQop == QOP.AUTH_CONF,
+                    actualMaxReceiveBuffer = gssContext.getWrapSizeLimit(0, selectedQop == QOP.AUTH_CONF,
                             configuredMaxReceiveBuffer);
                     baos.write(intToNetworkOrderBytes(actualMaxReceiveBuffer));
                 }

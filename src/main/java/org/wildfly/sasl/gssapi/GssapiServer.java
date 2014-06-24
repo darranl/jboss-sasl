@@ -173,9 +173,9 @@ public class GssapiServer extends AbstractGssapiMechanism implements SaslServer 
                 byte[] length;
 
                 if (offeringSecurityLayer) {
-                    int maxReceiveBuffer = gssContext.getWrapSizeLimit(0,
+                    actualMaxReceiveBuffer = gssContext.getWrapSizeLimit(0,
                             (supportedSecurityLayers & QOP.AUTH_CONF.getValue()) != 0, configuredMaxReceiveBuffer);
-                    length = intToNetworkOrderBytes(maxReceiveBuffer);
+                    length = intToNetworkOrderBytes(actualMaxReceiveBuffer);
                 } else {
                     length = new byte[] { 0x00, 0x00, 0x00 };
                 }
@@ -224,13 +224,14 @@ public class GssapiServer extends AbstractGssapiMechanism implements SaslServer 
                 throw new SaslException("Client selected a security layer that was not offered.");
             }
 
-            QOP selectedLayer = QOP.mapFromValue(unwrapped[0]);
-            assert selectedLayer != null;
+            QOP selectedQop = QOP.mapFromValue(unwrapped[0]);
+            assert selectedQop != null;
 
-            int messageLength = networkOrderBytesToInt(unwrapped, 1, 3);
-            if (selectedLayer == QOP.AUTH && messageLength != 0) {
+            maxBuffer = networkOrderBytesToInt(unwrapped, 1, 3);
+            if (relaxComplianceChecks == false && selectedQop == QOP.AUTH && maxBuffer != 0) {
                 throw new SaslException("No security layer selected but message length received.");
             }
+            GssapiServer.this.selectedQop = selectedQop;
 
             final String authenticationId;
             try {

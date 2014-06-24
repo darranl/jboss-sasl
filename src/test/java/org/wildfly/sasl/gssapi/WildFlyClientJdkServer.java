@@ -21,7 +21,9 @@ package org.wildfly.sasl.gssapi;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginClient;
 import static org.wildfly.sasl.gssapi.JAASUtil.loginServer;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginException;
@@ -65,7 +67,8 @@ public class WildFlyClientJdkServer extends BaseGssapiTests {
 
     @Override
     protected SaslServer getSaslServer(final VerificationMode mode) throws Exception {
-        SaslServer baseServer = createServer(serverSubject, false, mode);
+        Map<String, String> props = Collections.emptyMap();
+        SaslServer baseServer = createServer(serverSubject, false, mode, props);
 
         return new SubjectWrappingSaslServer(baseServer, serverSubject);
     }
