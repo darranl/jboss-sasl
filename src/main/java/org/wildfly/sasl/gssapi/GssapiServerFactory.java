@@ -36,8 +36,14 @@ public class GssapiServerFactory extends AbstractGssapiFactory implements SaslSe
             CallbackHandler cbh) throws SaslException {
         // TODO - We are actually required by RFC4752 to ensure we have the acceptor credential BEFORE advertising the
         // mechanism is available.
+        if (GSSAPI.equals(mechanism) && matches(props)) {
+            GssapiServer server = new GssapiServer(protocol, serverName, props, cbh);
+            server.init();
 
-        return GSSAPI.equals(mechanism) && matches(props) ? new GssapiServer(protocol, serverName, props, cbh) : null;
+            return server;
+        }
+
+        return null;
     }
 
 }

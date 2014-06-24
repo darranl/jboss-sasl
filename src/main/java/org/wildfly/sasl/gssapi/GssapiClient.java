@@ -33,12 +33,10 @@ import org.ietf.jgss.GSSException;
 import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
 import org.ietf.jgss.MessageProp;
-import org.ietf.jgss.Oid;
 import org.wildfly.sasl.WildFlySasl;
 import org.wildfly.sasl.util.Charsets;
 import org.wildfly.sasl.util.SaslState;
 import org.wildfly.sasl.util.SaslStateContext;
-import org.wildfly.sasl.util.SaslWrapper;
 
 /**
  * SaslClient for the GSSAPI mechanism as defined by RFC 4752
@@ -47,11 +45,8 @@ import org.wildfly.sasl.util.SaslWrapper;
  */
 public class GssapiClient extends AbstractGssapiMechanism implements SaslClient {
 
-    // Configured Values
     private final String authorizationId;
-    private final QOP[] preferredQop;
-    // Negotiated Values
-    private QOP selectedQop;
+
     GssapiClient(final String protocol, final String serverName, final Map<String, ?> props,
             final CallbackHandler callbackHandler, final String authorizationId) throws SaslException {
         super(AbstractGssapiFactory.GSSAPI, protocol, serverName, props, callbackHandler);
@@ -70,8 +65,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
             throw new SaslException("Unable to create name for acceptor.", e);
         }
 
-        preferredQop = parsePreferredQop((String) props.get(Sasl.QOP));
-        boolean mayRequireSecurityLayer = mayRequireSecurityLater(preferredQop);
+        boolean mayRequireSecurityLayer = mayRequireSecurityLater(orderedQops);
 
         // Pull the credential if we have it.
         GSSCredential credential = null;
@@ -126,7 +120,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
             }
 
             // Need to set this is we may want confidentiality, integrity is always requested.
-            for (QOP current : preferredQop) {
+            for (QOP current : orderedQops) {
                 if (current == QOP.AUTH_CONF) {
                     gssContext.requestConf(true);
                     break;
@@ -142,27 +136,6 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
         this.gssContext = gssContext;
     }
 
-    private QOP[] parsePreferredQop(final String qop) throws SaslException {
-        if (qop != null) {
-            String[] qopNames = qop.split(", ");
-            if (qopNames.length > 0) {
-                QOP[] preferredQop = new QOP[qopNames.length];
-                for (int i = 0; i < qopNames.length; i++) {
-                    QOP mapped = QOP.mapFromName(qopNames[i]);
-                    if (mapped == null) {
-                        throw new SaslException(String.format("Unrecogniesed QOP value '%s'", qopNames[i]));
-                    }
-                    preferredQop[i] = mapped;
-
-                }
-                return preferredQop;
-            }
-
-        }
-
-        return new QOP[] { QOP.AUTH };
-    }
-
     private boolean mayRequireSecurityLater(final QOP[] preferredQop) {
         for (QOP current : preferredQop) {
             if (current == QOP.AUTH_INT || current == QOP.AUTH_CONF) {
@@ -173,7 +146,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
     }
 
     private QOP findAgreeableQop(final byte securityLayer) throws SaslException {
-        for (QOP current : preferredQop) {
+        for (QOP current : orderedQops) {
             if (current.includedBy(securityLayer)) {
                 return current;
             }
@@ -199,9 +172,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
 
     @Override
     public Object getNegotiatedProperty(String propName) {
-        if (isComplete() == false) {
-            throw new IllegalStateException("The authentication exchange is not complete.");
-        }
+        assertComplete();
 
         switch (propName) {
             case Sasl.QOP:
@@ -271,6 +242,8 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
 
         @Override
         public byte[] evaluateMessage(SaslStateContext context, byte[] message) throws SaslException {
+            assert gssContext.isEstablished();
+
             MessageProp msgProp = new MessageProp(0, false);
             try {
                 byte[] unwrapped = gssContext.unwrap(message, 0, message.length, msgProp);
@@ -280,7 +253,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
 
                 byte qopByte = unwrapped[0];
                 selectedQop = findAgreeableQop(qopByte);
-                int serverMaxMessageSize = networkOrderBytesToInt(unwrapped, 1);
+                int serverMaxMessageSize = networkOrderBytesToInt(unwrapped, 1, 3);
                 if (relaxComplianceChecks == false && serverMaxMessageSize > 0 && (qopByte & QOP.AUTH_INT.getValue()) == 0
                         && (qopByte & QOP.AUTH_CONF.getValue()) == 0) {
                     throw new SaslException(String.format(
@@ -288,19 +261,15 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
                             serverMaxMessageSize));
                 }
 
-                System.out
-                        .println(String.format("Chosen QOP '%s', max Length %d", selectedQop.getName(), serverMaxMessageSize)); // TODO
-                                                                                                                                // Remove
-
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 baos.write(selectedQop.getValue());
                 if (selectedQop == QOP.AUTH) {
                     // No security layer selected to must set response to 000.
                     baos.write(new byte[] { 0x00, 0x00, 0x00 });
                 } else {
-                    int actualMacReceiveBuffer = gssContext.getWrapSizeLimit(0, selectedQop == QOP.AUTH_CONF,
+                    int actualMaxReceiveBuffer = gssContext.getWrapSizeLimit(0, selectedQop == QOP.AUTH_CONF,
                             configuredMaxReceiveBuffer);
-                    baos.write(intToNetworkOrderBytes(actualMacReceiveBuffer));
+                    baos.write(intToNetworkOrderBytes(actualMaxReceiveBuffer));
                 }
 
                 if (authorizationId != null) {
@@ -312,7 +281,7 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
                 response = gssContext.wrap(response, 0, response.length, msgProp);
 
                 if (selectedQop != QOP.AUTH) {
-                    setWrapper(new GssapiWrapper());
+                    setWrapper(new GssapiWrapper(selectedQop == QOP.AUTH_CONF));
                 }
 
                 context.negotiationComplete();
@@ -323,30 +292,6 @@ public class GssapiClient extends AbstractGssapiMechanism implements SaslClient 
                 throw new SaslException("Unable to unwrap security layer negotiation message.", e);
             }
         }
-    }
-
-    private class GssapiWrapper implements SaslWrapper {
-
-        @Override
-        public byte[] wrap(byte[] outgoing, int offset, int len) throws SaslException {
-            MessageProp prop = new MessageProp(0, selectedQop == QOP.AUTH_CONF);
-            try {
-                return gssContext.wrap(outgoing, offset, len, prop);
-            } catch (GSSException e) {
-                throw new SaslException("Unable to wrap message.", e);
-            }
-        }
-
-        @Override
-        public byte[] unwrap(byte[] incoming, int offset, int len) throws SaslException {
-            MessageProp prop = new MessageProp(0, selectedQop == QOP.AUTH_CONF);
-            try {
-                return gssContext.unwrap(incoming, offset, len, prop);
-            } catch (GSSException e) {
-                throw new SaslException("Unable to wrap message.", e);
-            }
-        }
-
     }
 
 }

@@ -26,9 +26,11 @@ import javax.security.sasl.SaslException;
 
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSException;
+import org.ietf.jgss.MessageProp;
 import org.ietf.jgss.Oid;
 import org.wildfly.sasl.WildFlySasl;
 import org.wildfly.sasl.util.AbstractSaslParticipant;
+import org.wildfly.sasl.util.SaslWrapper;
 
 /**
  * Base class for the SaslServer and SaslClient implementations implementing the GSSAPI mechanism as defined by RFC 4752
@@ -45,6 +47,8 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
     private static final byte CONFIDENTIALITY_PROTECTION = (byte) 0x04;
     protected static final int DEFAULT_MAX_BUFFER_SIZE = (int) 0xFFF;
     protected static final Oid KERBEROS_V5;
+    private final boolean confSupported;
+    private final boolean integSupported;
 
     // Kerberos V5 OID
 
@@ -59,8 +63,11 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
     protected GSSContext gssContext;
     protected final int configuredMaxReceiveBuffer;
     protected final boolean relaxComplianceChecks;
+    protected final QOP[] orderedQops;
+    protected QOP selectedQop;
 
-    protected AbstractGssapiMechanism(String mechanismName, String protocol, String serverName, final Map<String, ?> props, CallbackHandler callbackHandler) throws SaslException {
+    protected AbstractGssapiMechanism(String mechanismName, String protocol, String serverName, final Map<String, ?> props,
+            CallbackHandler callbackHandler) throws SaslException {
         super(mechanismName, protocol, serverName, callbackHandler);
 
         if (props.containsKey(Sasl.MAX_BUFFER)) {
@@ -78,7 +85,18 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
         } else {
             relaxComplianceChecks = false;
         }
-
+        orderedQops = parsePreferredQop((String) props.get(Sasl.QOP));
+        boolean confSupported = false;
+        boolean integSupported = false;
+        for (QOP current : orderedQops) {
+            if (current == QOP.AUTH_CONF) {
+                confSupported = true;
+            } else if (current == QOP.AUTH_INT) {
+                integSupported = true;
+            }
+        }
+        this.confSupported = confSupported;
+        this.integSupported = integSupported;
     }
 
     /**
@@ -87,10 +105,10 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
      * This method is implemented in the context of the GSSAPI mechanism, it is assumed that the size of the byte array is
      * appropriate.
      */
-    protected int networkOrderBytesToInt(final byte[] bytes, final int start) {
+    protected int networkOrderBytesToInt(final byte[] bytes, final int start, final int length) {
         int result = 0;
 
-        for (int i = start; i < bytes.length; i++) {
+        for (int i = start; i < length + start; i++) {
             result <<= 8;
             result |= bytes[i]; // TODO - Do we need an int conversion.
         }
@@ -124,11 +142,31 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
         }
     }
 
+    private QOP[] parsePreferredQop(final String qop) throws SaslException {
+        if (qop != null) {
+            String[] qopNames = qop.split(", ");
+            if (qopNames.length > 0) {
+                QOP[] preferredQop = new QOP[qopNames.length];
+                for (int i = 0; i < qopNames.length; i++) {
+                    QOP mapped = QOP.mapFromName(qopNames[i]);
+                    if (mapped == null) {
+                        throw new SaslException(String.format("Unrecogniesed QOP value '%s'", qopNames[i]));
+                    }
+                    preferredQop[i] = mapped;
+
+                }
+                return preferredQop;
+            }
+
+        }
+
+        return new QOP[] { QOP.AUTH };
+    }
+
     protected enum QOP {
 
-        AUTH(AbstractGssapiMechanism.AUTH, NO_SECURITY_LAYER),
-        AUTH_INT(AbstractGssapiMechanism.AUTH_INT, INTEGRITY_PROTECTION),
-        AUTH_CONF(AbstractGssapiMechanism.AUTH_CONF, CONFIDENTIALITY_PROTECTION);
+        AUTH(AbstractGssapiMechanism.AUTH, NO_SECURITY_LAYER), AUTH_INT(AbstractGssapiMechanism.AUTH_INT, INTEGRITY_PROTECTION), AUTH_CONF(
+                AbstractGssapiMechanism.AUTH_CONF, CONFIDENTIALITY_PROTECTION);
 
         private final String name;
         private final byte value;
@@ -150,6 +188,19 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
             return (securityLayer & value) == value;
         }
 
+        public static QOP mapFromValue(final byte value) {
+            switch (value) {
+                case NO_SECURITY_LAYER:
+                    return AUTH;
+                case INTEGRITY_PROTECTION:
+                    return AUTH_INT;
+                case CONFIDENTIALITY_PROTECTION:
+                    return AUTH_CONF;
+                default:
+                    return null;
+            }
+        }
+
         public static QOP mapFromName(final String name) {
             switch (name) {
                 case AbstractGssapiMechanism.AUTH:
@@ -166,4 +217,33 @@ abstract class AbstractGssapiMechanism extends AbstractSaslParticipant {
 
     }
 
+    protected class GssapiWrapper implements SaslWrapper {
+
+        private final boolean confidential;
+
+        protected GssapiWrapper(final boolean confidential) {
+            this.confidential = confidential;
+        }
+
+        @Override
+        public byte[] wrap(byte[] outgoing, int offset, int len) throws SaslException {
+            MessageProp prop = new MessageProp(0, confidential);
+            try {
+                return gssContext.wrap(outgoing, offset, len, prop);
+            } catch (GSSException e) {
+                throw new SaslException("Unable to wrap message.", e);
+            }
+        }
+
+        @Override
+        public byte[] unwrap(byte[] incoming, int offset, int len) throws SaslException {
+            MessageProp prop = new MessageProp(0, confidential);
+            try {
+                return gssContext.unwrap(incoming, offset, len, prop);
+            } catch (GSSException e) {
+                throw new SaslException("Unable to wrap message.", e);
+            }
+        }
+
+    }
 }
